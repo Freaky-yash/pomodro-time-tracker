@@ -7,6 +7,7 @@ const DURATIONS = {
 };
 
 const THEME_BACKGROUNDS = {
+  violet: 'radial-gradient(circle at 15% 12%, #8b5cf6 0%, #4c1d95 42%, #0b1020 100%)',
   aurora: 'radial-gradient(circle at 10% 10%, #1d4ed8 0%, #0f172a 42%, #020617 100%)',
   sunset: 'radial-gradient(circle at 20% 0%, #f97316 0%, #7c2d12 38%, #0f172a 85%)',
   midnight: 'radial-gradient(circle at 80% 0%, #1e3a8a 0%, #0b1120 45%, #020617 100%)',
@@ -58,7 +59,7 @@ function App() {
   const [mode, setMode] = useState('focus');
   const [remaining, setRemaining] = useState(DURATIONS.focus);
   const [isRunning, setIsRunning] = useState(false);
-  const [theme, setTheme] = useState(saved?.theme || 'aurora');
+  const [theme, setTheme] = useState(saved?.theme || 'violet');
   const [backgroundImage, setBackgroundImage] = useState(saved?.backgroundImage || '');
   const [workspaceTab, setWorkspaceTab] = useState('dashboard');
   const [page, setPage] = useState('home');
@@ -223,12 +224,15 @@ function App() {
     return { daily, weekly, monthly, entries: entries.sort((a, b) => b[0].localeCompare(a[0])) };
   }, [sessionHistory]);
 
-  const themeBackground = THEME_BACKGROUNDS[theme] || THEME_BACKGROUNDS.aurora;
-  const rootStyle = {
-    backgroundImage: backgroundImage
-      ? `${themeBackground}, linear-gradient(rgba(8,12,20,.58), rgba(8,12,20,.75)), url(${backgroundImage})`
-      : themeBackground,
-  };
+  const signedOutBackground = THEME_BACKGROUNDS.violet;
+  const themeBackground = THEME_BACKGROUNDS[theme] || THEME_BACKGROUNDS.violet;
+  const rootStyle = session
+    ? {
+      backgroundImage: backgroundImage
+        ? `${themeBackground}, linear-gradient(rgba(8,12,20,.58), rgba(8,12,20,.75)), url(${backgroundImage})`
+        : themeBackground,
+    }
+    : { backgroundImage: signedOutBackground };
 
   return (
     <div className="app" style={rootStyle}>
@@ -345,6 +349,7 @@ function App() {
                   <label>
                     Theme
                     <select value={theme} onChange={(e) => setTheme(e.target.value)}>
+                      <option value="violet">Violet (Default)</option>
                       <option value="aurora">Aurora</option>
                       <option value="sunset">Sunset</option>
                       <option value="midnight">Midnight</option>

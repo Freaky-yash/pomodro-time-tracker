@@ -16,7 +16,7 @@ FocusForge is a student productivity app with a timer-first home screen, a clean
 
 ## Settings included
 
-- Theme picker (Aurora, Sunset, Midnight, Forest)
+- Theme picker (Violet default, Aurora, Sunset, Midnight, Forest)
 - Custom wallpaper upload from local computer
 - 5 session-end tunes with preview option
 - Full-screen toggle for immersive mode
@@ -37,3 +37,8 @@ FocusForge is a student productivity app with a timer-first home screen, a clean
 2. Sign up or sign in to enter FocusForge.
 
 > Note: Music provider sign-in is simulated in this front-end demo and does not yet use real OAuth APIs.
+
+## Visual defaults
+
+- Sign-in page always uses a clean default violet theme.
+- After logout, the sign-in page does not reuse the previously selected in-app wallpaper.
