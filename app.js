@@ -65,12 +65,6 @@ function App() {
   const [workspaceTab, setWorkspaceTab] = useState('dashboard');
   const [page, setPage] = useState('home');
   const [selectedTune, setSelectedTune] = useState(saved?.selectedTune || 'chime');
-  const [music, setMusic] = useState(saved?.music || {
-    provider: 'spotify',
-    connected: false,
-    lastTrackUrl: '',
-    nowPlaying: false,
-  });
 
   useEffect(() => {
     saveStorage({
@@ -81,11 +75,10 @@ function App() {
       sessionHistory,
       theme,
       backgroundImage,
-      music,
       selectedTune,
       durations,
     });
-  }, [accounts, session, tasks, completedFocusSessions, sessionHistory, theme, backgroundImage, music, selectedTune, durations]);
+  }, [accounts, session, tasks, completedFocusSessions, sessionHistory, theme, backgroundImage, selectedTune, durations]);
 
   useEffect(() => {
     let id;
@@ -141,10 +134,9 @@ function App() {
       setRemaining(durations.shortBreak);
       alert('Great focus block complete. Take a short break.');
     } else {
-      setMusic((m) => ({ ...m, nowPlaying: false }));
       setMode('focus');
       setRemaining(durations.focus);
-      alert('Break ended. Music stopped, back to focus mode.');
+      alert('Break ended. Back to focus mode.');
     }
   }
 
@@ -181,6 +173,7 @@ function App() {
     const reader = new FileReader();
     reader.onload = () => setBackgroundImage(reader.result?.toString() || '');
     reader.readAsDataURL(file);
+    event.target.value = '';
   }
 
   function signUp(email, password, name) {
@@ -204,12 +197,13 @@ function App() {
     setPage('home');
   }
 
-  function toggleFullscreen() {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen?.();
-    } else {
-      document.exitFullscreen?.();
-    }
+  function goHome() {
+    setPage('home');
+  }
+
+  function goWorkspace() {
+    setWorkspaceTab('dashboard');
+    setPage('workspace');
   }
 
   const report = useMemo(() => {
@@ -260,8 +254,8 @@ function App() {
               </div>
             </div>
             <div className="row">
-              <button onClick={() => setPage('home')}>Home</button>
-              <button onClick={() => setPage('workspace')}>Workspace</button>
+              <button onClick={goHome}>Home</button>
+              <button onClick={goWorkspace}>Workspace</button>
             </div>
           </header>
 
@@ -270,20 +264,19 @@ function App() {
               <section className="timer-panel timer-centered">
                 <h2>Study Session Timer</h2>
                 <div className="timer timer-hero">{formatTime(remaining)}</div>
-                <div className="modes">
+                <div className="row center-row action-row">
+                  <button className="action-btn start-btn" onClick={() => setIsRunning((v) => !v)}>{isRunning ? 'Stop' : 'Start'}</button>
+                  <button className="action-btn reset-btn" onClick={() => { setIsRunning(false); setRemaining(durations[mode]); }}>Reset</button>
+                  <button className="action-btn skip-btn" onClick={() => finishSession(mode)}>Skip</button>
+                </div>
+                <div className="modes center-row">
                   <button className={mode === 'focus' ? 'active' : ''} onClick={() => switchMode('focus')}>Focus</button>
                   <button className={mode === 'shortBreak' ? 'active' : ''} onClick={() => switchMode('shortBreak')}>Short Break</button>
                   <button className={mode === 'longBreak' ? 'active' : ''} onClick={() => switchMode('longBreak')}>Long Break</button>
                 </div>
-                <div className="row">
-                  <button onClick={() => setIsRunning((v) => !v)}>{isRunning ? 'Pause' : 'Start'}</button>
-                  <button onClick={() => { setIsRunning(false); setRemaining(durations[mode]); }}>Reset</button>
-                  <button onClick={() => finishSession(mode)}>Skip</button>
-                </div>
                 <p>Completed Focus Sessions: <strong>{completedFocusSessions}</strong></p>
                 <div className="row center-row">
-                  <button className="workspace-cta" onClick={() => setPage('workspace')}>Go to Dashboard & Reports</button>
-                  <button onClick={toggleFullscreen}>Toggle Full Screen</button>
+                  <button className="workspace-cta" onClick={goWorkspace}>Go to Dashboard & Reports</button>
                 </div>
               </section>
             </section>
@@ -308,9 +301,9 @@ function App() {
                 <section className="card">
                   <h2>Student Reports</h2>
                   <div className="stats-grid">
-                    <article><h3>Daily</h3><p>{report.daily} focus sessions</p></article>
-                    <article><h3>Weekly</h3><p>{report.weekly} focus sessions</p></article>
-                    <article><h3>Monthly</h3><p>{report.monthly} focus sessions</p></article>
+                    <article><h3>Daily</h3><p>{report.daily} focus sessions</p><p>{report.daily * Math.round(durations.focus / 60)} mins ({((report.daily * durations.focus) / 3600).toFixed(1)} hrs)</p></article>
+                    <article><h3>Weekly</h3><p>{report.weekly} focus sessions</p><p>{report.weekly * Math.round(durations.focus / 60)} mins ({((report.weekly * durations.focus) / 3600).toFixed(1)} hrs)</p></article>
+                    <article><h3>Monthly</h3><p>{report.monthly} focus sessions</p><p>{report.monthly * Math.round(durations.focus / 60)} mins ({((report.monthly * durations.focus) / 3600).toFixed(1)} hrs)</p></article>
                   </div>
                   <h3>Recent Daily Logs</h3>
                   <ul className="report-list">
@@ -380,7 +373,6 @@ function App() {
                   </label>
                   <div className="row settings-actions">
                     <button onClick={playSelectedTune}>Preview Tune</button>
-                    <button onClick={toggleFullscreen}>Toggle Full Screen</button>
                     <button onClick={() => { setSession(null); setPage('home'); }}>Logout</button>
                   </div>
                 </section>
@@ -389,42 +381,15 @@ function App() {
           )}
 
           {page === 'home' && (
-            <div className="floating-music-player">
-              <div className="music-panel floating-music-content">
-                <h3>Music Player</h3>
-                <label>
-                  Provider
-                  <select
-                    value={music.provider}
-                    onChange={(e) => setMusic((m) => ({ ...m, provider: e.target.value }))}
-                  >
-                    <option value="spotify">Spotify</option>
-                    <option value="youtube">YouTube Music</option>
-                    <option value="soundcloud">SoundCloud</option>
-                    <option value="other">Other</option>
-                  </select>
-                </label>
-                <div className="row">
-                  <button onClick={() => setMusic((m) => ({ ...m, connected: !m.connected }))}>
-                    {music.connected ? 'Disconnect' : `Sign in to ${music.provider}`}
-                  </button>
-                  <button
-                    disabled={!music.connected || !music.lastTrackUrl}
-                    onClick={() => setMusic((m) => ({ ...m, nowPlaying: !m.nowPlaying }))}
-                  >
-                    {music.nowPlaying ? 'Stop' : 'Play'}
-                  </button>
-                </div>
-                <input
-                  placeholder="Paste track URL"
-                  value={music.lastTrackUrl}
-                  onChange={(e) => setMusic((m) => ({ ...m, lastTrackUrl: e.target.value }))}
-                />
-                {music.nowPlaying && music.lastTrackUrl && (
-                  <iframe title="music" src={music.lastTrackUrl} className="music-frame" allow="autoplay; encrypted-media" />
-                )}
-              </div>
-            </div>
+            <a
+              className="floating-music-player trending-link"
+              href="https://www.youtube.com/results?search_query=trending+study+songs+lofi"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <span className="study-logo">♫</span>
+              <span>Trending Study Songs</span>
+            </a>
           )}
 
           <a
