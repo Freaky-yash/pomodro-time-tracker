@@ -57,7 +57,8 @@ function App() {
   const [completedFocusSessions, setCompletedFocusSessions] = useState(saved?.completedFocusSessions || 0);
   const [sessionHistory, setSessionHistory] = useState(saved?.sessionHistory || {});
   const [mode, setMode] = useState('focus');
-  const [remaining, setRemaining] = useState(DURATIONS.focus);
+  const [durations, setDurations] = useState(saved?.durations || DURATIONS);
+  const [remaining, setRemaining] = useState((saved?.durations || DURATIONS).focus);
   const [isRunning, setIsRunning] = useState(false);
   const [theme, setTheme] = useState(saved?.theme || 'violet');
   const [backgroundImage, setBackgroundImage] = useState(saved?.backgroundImage || '');
@@ -82,8 +83,9 @@ function App() {
       backgroundImage,
       music,
       selectedTune,
+      durations,
     });
-  }, [accounts, session, tasks, completedFocusSessions, sessionHistory, theme, backgroundImage, music, selectedTune]);
+  }, [accounts, session, tasks, completedFocusSessions, sessionHistory, theme, backgroundImage, music, selectedTune, durations]);
 
   useEffect(() => {
     let id;
@@ -93,14 +95,14 @@ function App() {
           if (prev <= 1) {
             setIsRunning(false);
             finishSession(mode);
-            return DURATIONS.focus;
+            return durations.focus;
           }
           return prev - 1;
         });
       }, 1000);
     }
     return () => clearInterval(id);
-  }, [isRunning, mode]);
+  }, [isRunning, mode, durations]);
 
   useEffect(() => {
     document.title = `${formatTime(remaining)} • FocusForge`;
@@ -136,20 +138,29 @@ function App() {
         return { ...prev, [key]: (prev[key] || 0) + 1 };
       });
       setMode('shortBreak');
-      setRemaining(DURATIONS.shortBreak);
+      setRemaining(durations.shortBreak);
       alert('Great focus block complete. Take a short break.');
     } else {
       setMusic((m) => ({ ...m, nowPlaying: false }));
       setMode('focus');
-      setRemaining(DURATIONS.focus);
+      setRemaining(durations.focus);
       alert('Break ended. Music stopped, back to focus mode.');
     }
   }
 
   function switchMode(nextMode) {
     setMode(nextMode);
-    setRemaining(DURATIONS[nextMode]);
+    setRemaining(durations[nextMode]);
     setIsRunning(false);
+  }
+
+  function updateDuration(name, minutesValue) {
+    const minutes = Math.max(1, Math.min(180, Number(minutesValue) || 1));
+    const nextSeconds = minutes * 60;
+    setDurations((prev) => ({ ...prev, [name]: nextSeconds }));
+    if (mode === name && !isRunning) {
+      setRemaining(nextSeconds);
+    }
   }
 
   function addTask(text) {
@@ -255,8 +266,8 @@ function App() {
           </header>
 
           {page === 'home' && (
-            <section className="card home-card home-grid">
-              <section className="timer-panel">
+            <section className="card home-card centered-home">
+              <section className="timer-panel timer-centered">
                 <h2>Study Session Timer</h2>
                 <div className="timer timer-hero">{formatTime(remaining)}</div>
                 <div className="modes">
@@ -266,47 +277,14 @@ function App() {
                 </div>
                 <div className="row">
                   <button onClick={() => setIsRunning((v) => !v)}>{isRunning ? 'Pause' : 'Start'}</button>
-                  <button onClick={() => { setIsRunning(false); setRemaining(DURATIONS[mode]); }}>Reset</button>
+                  <button onClick={() => { setIsRunning(false); setRemaining(durations[mode]); }}>Reset</button>
                   <button onClick={() => finishSession(mode)}>Skip</button>
                 </div>
                 <p>Completed Focus Sessions: <strong>{completedFocusSessions}</strong></p>
-                <button className="workspace-cta" onClick={() => setPage('workspace')}>Go to Dashboard & Reports</button>
-              </section>
-
-              <section className="music-panel">
-                <h3>Music Player</h3>
-                <p>Keep your track controls beside the timer.</p>
-                <label>
-                  Provider
-                  <select
-                    value={music.provider}
-                    onChange={(e) => setMusic((m) => ({ ...m, provider: e.target.value }))}
-                  >
-                    <option value="spotify">Spotify</option>
-                    <option value="youtube">YouTube Music</option>
-                    <option value="soundcloud">SoundCloud</option>
-                    <option value="other">Other</option>
-                  </select>
-                </label>
-                <div className="row">
-                  <button onClick={() => setMusic((m) => ({ ...m, connected: !m.connected }))}>
-                    {music.connected ? 'Disconnect' : `Sign in to ${music.provider}`}
-                  </button>
-                  <button
-                    disabled={!music.connected || !music.lastTrackUrl}
-                    onClick={() => setMusic((m) => ({ ...m, nowPlaying: !m.nowPlaying }))}
-                  >
-                    {music.nowPlaying ? 'Stop music' : 'Play last track'}
-                  </button>
+                <div className="row center-row">
+                  <button className="workspace-cta" onClick={() => setPage('workspace')}>Go to Dashboard & Reports</button>
+                  <button onClick={toggleFullscreen}>Toggle Full Screen</button>
                 </div>
-                <input
-                  placeholder="Paste track/share URL"
-                  value={music.lastTrackUrl}
-                  onChange={(e) => setMusic((m) => ({ ...m, lastTrackUrl: e.target.value }))}
-                />
-                {music.nowPlaying && music.lastTrackUrl && (
-                  <iframe title="music" src={music.lastTrackUrl} className="music-frame" allow="autoplay; encrypted-media" />
-                )}
               </section>
             </section>
           )}
@@ -370,6 +348,36 @@ function App() {
                       <option value="alert">Alert</option>
                     </select>
                   </label>
+                  <label>
+                    Focus Minutes
+                    <input
+                      type="number"
+                      min="1"
+                      max="180"
+                      value={Math.round(durations.focus / 60)}
+                      onChange={(e) => updateDuration('focus', e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Short Break Minutes
+                    <input
+                      type="number"
+                      min="1"
+                      max="180"
+                      value={Math.round(durations.shortBreak / 60)}
+                      onChange={(e) => updateDuration('shortBreak', e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Long Break Minutes
+                    <input
+                      type="number"
+                      min="1"
+                      max="180"
+                      value={Math.round(durations.longBreak / 60)}
+                      onChange={(e) => updateDuration('longBreak', e.target.value)}
+                    />
+                  </label>
                   <div className="row settings-actions">
                     <button onClick={playSelectedTune}>Preview Tune</button>
                     <button onClick={toggleFullscreen}>Toggle Full Screen</button>
@@ -378,6 +386,45 @@ function App() {
                 </section>
               )}
             </>
+          )}
+
+          {page === 'home' && (
+            <div className="floating-music-player">
+              <div className="music-panel floating-music-content">
+                <h3>Music Player</h3>
+                <label>
+                  Provider
+                  <select
+                    value={music.provider}
+                    onChange={(e) => setMusic((m) => ({ ...m, provider: e.target.value }))}
+                  >
+                    <option value="spotify">Spotify</option>
+                    <option value="youtube">YouTube Music</option>
+                    <option value="soundcloud">SoundCloud</option>
+                    <option value="other">Other</option>
+                  </select>
+                </label>
+                <div className="row">
+                  <button onClick={() => setMusic((m) => ({ ...m, connected: !m.connected }))}>
+                    {music.connected ? 'Disconnect' : `Sign in to ${music.provider}`}
+                  </button>
+                  <button
+                    disabled={!music.connected || !music.lastTrackUrl}
+                    onClick={() => setMusic((m) => ({ ...m, nowPlaying: !m.nowPlaying }))}
+                  >
+                    {music.nowPlaying ? 'Stop' : 'Play'}
+                  </button>
+                </div>
+                <input
+                  placeholder="Paste track URL"
+                  value={music.lastTrackUrl}
+                  onChange={(e) => setMusic((m) => ({ ...m, lastTrackUrl: e.target.value }))}
+                />
+                {music.nowPlaying && music.lastTrackUrl && (
+                  <iframe title="music" src={music.lastTrackUrl} className="music-frame" allow="autoplay; encrypted-media" />
+                )}
+              </div>
+            </div>
           )}
 
           <a

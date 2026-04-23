@@ -56,14 +56,16 @@ body {
 
 .card { padding: 1rem 1.2rem; }
 .home-card { max-width: 1200px; }
-.home-grid { display: grid; gap: 1rem; grid-template-columns: 1.2fr .8fr; }
+.centered-home { display: grid; place-items: center; }
 .timer-panel, .music-panel {
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 14px;
   padding: 1rem;
   background: rgba(2, 6, 23, 0.42);
 }
-.workspace-cta { margin-top: 0.9rem; width: 100%; }
+.timer-centered { width: min(720px, 94vw); text-align: center; }
+.workspace-cta { margin-top: 0.9rem; }
+.center-row { justify-content: center; }
 
 .tabs { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
@@ -109,6 +111,18 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .music-frame { width: 100%; min-height: 140px; border: 0; border-radius: 10px; margin-top: 0.4rem; }
 
+.floating-music-player {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 20;
+}
+.floating-music-content {
+  width: min(380px, 88vw);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  background: rgba(2, 6, 23, 0.82);
+}
+
 .floating-study-link {
   position: fixed;
   left: 14px;
@@ -134,7 +148,11 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .link { width: 100%; margin-top: 0.5rem; }
 
 @media (max-width: 960px) {
-  .home-grid { grid-template-columns: 1fr; }
+  .floating-music-player {
+    position: static;
+    margin: 0 auto 1rem;
+    width: min(380px, 94vw);
+  }
 }
 
 @media (max-width: 860px) {

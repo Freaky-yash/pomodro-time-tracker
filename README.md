@@ -6,9 +6,10 @@ FocusForge is a student productivity app with a timer-first home screen, a clean
 
 - **Sign-in page**: centered FocusForge title and tagline.
 - **Home page after sign in**:
-  - Big study timer shown first.
-  - Music player panel beside the timer.
+  - Big study timer centered on the page.
+  - Floating music player at the bottom-right corner.
   - Floating study-session video link at bottom-left.
+  - Full-screen toggle button visible on the first page.
 - **Workspace page**:
   - Dashboard tab (tasks)
   - Reports tab (daily / weekly / monthly)
@@ -18,6 +19,7 @@ FocusForge is a student productivity app with a timer-first home screen, a clean
 
 - Theme picker (Violet default, Aurora, Sunset, Midnight, Forest)
 - Custom wallpaper upload from local computer
+- Custom Focus / Short Break / Long Break minute limits
 - 5 session-end tunes with preview option
 - Full-screen toggle for immersive mode
 - Logout action inside Settings
