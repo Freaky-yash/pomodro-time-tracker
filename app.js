@@ -6,6 +6,21 @@ const DURATIONS = {
   longBreak: 15 * 60,
 };
 
+const THEME_BACKGROUNDS = {
+  aurora: 'radial-gradient(circle at 10% 10%, #1d4ed8 0%, #0f172a 42%, #020617 100%)',
+  sunset: 'radial-gradient(circle at 20% 0%, #f97316 0%, #7c2d12 38%, #0f172a 85%)',
+  midnight: 'radial-gradient(circle at 80% 0%, #1e3a8a 0%, #0b1120 45%, #020617 100%)',
+  forest: 'radial-gradient(circle at 20% 10%, #16a34a 0%, #052e16 45%, #020617 100%)',
+};
+
+const TUNES = {
+  chime: [523.25, 659.25, 783.99],
+  bell: [392.0, 523.25, 392.0, 523.25],
+  focus: [440.0, 493.88, 523.25, 659.25],
+  calm: [349.23, 392.0, 440.0],
+  alert: [659.25, 659.25, 523.25, 659.25, 783.99],
+};
+
 const STORAGE_KEY = 'student-productivity-hub-v2';
 
 function loadStorage() {
@@ -47,6 +62,7 @@ function App() {
   const [backgroundImage, setBackgroundImage] = useState(saved?.backgroundImage || '');
   const [workspaceTab, setWorkspaceTab] = useState('dashboard');
   const [page, setPage] = useState('home');
+  const [selectedTune, setSelectedTune] = useState(saved?.selectedTune || 'chime');
   const [music, setMusic] = useState(saved?.music || {
     provider: 'spotify',
     connected: false,
@@ -64,8 +80,9 @@ function App() {
       theme,
       backgroundImage,
       music,
+      selectedTune,
     });
-  }, [accounts, session, tasks, completedFocusSessions, sessionHistory, theme, backgroundImage, music]);
+  }, [accounts, session, tasks, completedFocusSessions, sessionHistory, theme, backgroundImage, music, selectedTune]);
 
   useEffect(() => {
     let id;
@@ -88,7 +105,29 @@ function App() {
     document.title = `${formatTime(remaining)} • FocusForge`;
   }, [remaining]);
 
+  function playSelectedTune() {
+    const notes = TUNES[selectedTune] || TUNES.chime;
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    let when = ctx.currentTime;
+
+    notes.forEach((frequency) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.001, when);
+      gain.gain.exponentialRampToValueAtTime(0.2, when + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, when + 0.28);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(when);
+      osc.stop(when + 0.3);
+      when += 0.18;
+    });
+  }
+
   function finishSession(currentMode) {
+    playSelectedTune();
     if (currentMode === 'focus') {
       setCompletedFocusSessions((s) => s + 1);
       setSessionHistory((prev) => {
@@ -153,6 +192,14 @@ function App() {
     setPage('home');
   }
 
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+  }
+
   const report = useMemo(() => {
     const entries = Object.entries(sessionHistory);
     const daily = sessionHistory[getDateKey()] || 0;
@@ -176,14 +223,15 @@ function App() {
     return { daily, weekly, monthly, entries: entries.sort((a, b) => b[0].localeCompare(a[0])) };
   }, [sessionHistory]);
 
+  const themeBackground = THEME_BACKGROUNDS[theme] || THEME_BACKGROUNDS.aurora;
   const rootStyle = {
     backgroundImage: backgroundImage
-      ? `linear-gradient(rgba(8,12,20,.62), rgba(8,12,20,.62)), url(${backgroundImage})`
-      : undefined,
+      ? `${themeBackground}, linear-gradient(rgba(8,12,20,.58), rgba(8,12,20,.75)), url(${backgroundImage})`
+      : themeBackground,
   };
 
   return (
-    <div className={`app theme-${theme}`} style={rootStyle}>
+    <div className="app" style={rootStyle}>
       {!session ? (
         <AuthCard onSignIn={signIn} onSignUp={signUp} />
       ) : (
@@ -199,29 +247,31 @@ function App() {
             <div className="row">
               <button onClick={() => setPage('home')}>Home</button>
               <button onClick={() => setPage('workspace')}>Workspace</button>
-              <button onClick={() => { setSession(null); setPage('home'); }}>Sign out</button>
             </div>
           </header>
 
           {page === 'home' && (
-            <section className="card home-card">
-              <h2>Study Session Timer</h2>
-              <div className="timer">{formatTime(remaining)}</div>
-              <div className="modes">
-                <button className={mode === 'focus' ? 'active' : ''} onClick={() => switchMode('focus')}>Focus</button>
-                <button className={mode === 'shortBreak' ? 'active' : ''} onClick={() => switchMode('shortBreak')}>Short Break</button>
-                <button className={mode === 'longBreak' ? 'active' : ''} onClick={() => switchMode('longBreak')}>Long Break</button>
-              </div>
-              <div className="row">
-                <button onClick={() => setIsRunning((v) => !v)}>{isRunning ? 'Pause' : 'Start'}</button>
-                <button onClick={() => { setIsRunning(false); setRemaining(DURATIONS[mode]); }}>Reset</button>
-                <button onClick={() => finishSession(mode)}>Skip</button>
-              </div>
-              <p>Completed Focus Sessions: <strong>{completedFocusSessions}</strong></p>
+            <section className="card home-card home-grid">
+              <section className="timer-panel">
+                <h2>Study Session Timer</h2>
+                <div className="timer timer-hero">{formatTime(remaining)}</div>
+                <div className="modes">
+                  <button className={mode === 'focus' ? 'active' : ''} onClick={() => switchMode('focus')}>Focus</button>
+                  <button className={mode === 'shortBreak' ? 'active' : ''} onClick={() => switchMode('shortBreak')}>Short Break</button>
+                  <button className={mode === 'longBreak' ? 'active' : ''} onClick={() => switchMode('longBreak')}>Long Break</button>
+                </div>
+                <div className="row">
+                  <button onClick={() => setIsRunning((v) => !v)}>{isRunning ? 'Pause' : 'Start'}</button>
+                  <button onClick={() => { setIsRunning(false); setRemaining(DURATIONS[mode]); }}>Reset</button>
+                  <button onClick={() => finishSession(mode)}>Skip</button>
+                </div>
+                <p>Completed Focus Sessions: <strong>{completedFocusSessions}</strong></p>
+                <button className="workspace-cta" onClick={() => setPage('workspace')}>Go to Dashboard & Reports</button>
+              </section>
 
-              <section className="music-block">
+              <section className="music-panel">
                 <h3>Music Player</h3>
-                <p>Just below your timer so you can control your sound without losing focus.</p>
+                <p>Keep your track controls beside the timer.</p>
                 <label>
                   Provider
                   <select
@@ -254,8 +304,6 @@ function App() {
                   <iframe title="music" src={music.lastTrackUrl} className="music-frame" allow="autoplay; encrypted-media" />
                 )}
               </section>
-
-              <button className="workspace-cta" onClick={() => setPage('workspace')}>Go to Dashboard & Reports</button>
             </section>
           )}
 
@@ -264,7 +312,7 @@ function App() {
               <nav className="tabs card">
                 <button className={workspaceTab === 'dashboard' ? 'active' : ''} onClick={() => setWorkspaceTab('dashboard')}>Dashboard</button>
                 <button className={workspaceTab === 'reports' ? 'active' : ''} onClick={() => setWorkspaceTab('reports')}>Reports</button>
-                <button className={workspaceTab === 'study' ? 'active' : ''} onClick={() => setWorkspaceTab('study')}>Study</button>
+                <button className={workspaceTab === 'settings' ? 'active' : ''} onClick={() => setWorkspaceTab('settings')}>Settings</button>
               </nav>
 
               {workspaceTab === 'dashboard' && (
@@ -292,7 +340,7 @@ function App() {
                 </section>
               )}
 
-              {workspaceTab === 'study' && (
+              {workspaceTab === 'settings' && (
                 <section className="card controls-grid">
                   <label>
                     Theme
@@ -300,16 +348,42 @@ function App() {
                       <option value="aurora">Aurora</option>
                       <option value="sunset">Sunset</option>
                       <option value="midnight">Midnight</option>
+                      <option value="forest">Forest</option>
                     </select>
                   </label>
                   <label>
                     Upload Wallpaper (from your computer)
                     <input type="file" accept="image/*" onChange={handleWallpaperUpload} />
                   </label>
+                  <label>
+                    Session End Tune
+                    <select value={selectedTune} onChange={(e) => setSelectedTune(e.target.value)}>
+                      <option value="chime">Chime</option>
+                      <option value="bell">Bell</option>
+                      <option value="focus">Focus Rise</option>
+                      <option value="calm">Calm</option>
+                      <option value="alert">Alert</option>
+                    </select>
+                  </label>
+                  <div className="row settings-actions">
+                    <button onClick={playSelectedTune}>Preview Tune</button>
+                    <button onClick={toggleFullscreen}>Toggle Full Screen</button>
+                    <button onClick={() => { setSession(null); setPage('home'); }}>Logout</button>
+                  </div>
                 </section>
               )}
             </>
           )}
+
+          <a
+            className="floating-study-link"
+            href="https://www.youtube.com/results?search_query=study+with+me+pomodoro"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <span className="study-logo">▶</span>
+            <span>Study Session Videos</span>
+          </a>
         </>
       )}
     </div>
