@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Pomodoro Task Tracker</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>📚 Student Pomodoro Task Tracker</h1>
+      <p>Plan your study tasks, stay focused, and track completed Pomodoros.</p>
+    </header>
+
+    <section class="card timer-card">
+      <h2>Pomodoro Timer</h2>
+      <div class="timer-display" id="timerDisplay" aria-live="polite">25:00</div>
+
+      <div class="mode-buttons" role="group" aria-label="Timer modes">
+        <button data-mode="focus" class="mode-btn active">Focus (25)</button>
+        <button data-mode="shortBreak" class="mode-btn">Short Break (5)</button>
+        <button data-mode="longBreak" class="mode-btn">Long Break (15)</button>
+      </div>
+
+      <div class="timer-controls">
+        <button id="startPauseBtn" class="primary">Start</button>
+        <button id="resetBtn">Reset</button>
+        <button id="skipBtn">Skip</button>
+      </div>
+
+      <div class="stats">
+        <p><strong>Completed Focus Sessions:</strong> <span id="sessionCount">0</span></p>
+      </div>
+    </section>
+
+    <section class="card tasks-card">
+      <h2>Task List</h2>
+      <form id="taskForm" class="task-form">
+        <input id="taskInput" type="text" placeholder="Add a study task (e.g., Revise chapter 3)" required maxlength="120" />
+        <button type="submit" class="primary">Add Task</button>
+      </form>
+      <ul id="taskList" class="task-list"></ul>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
