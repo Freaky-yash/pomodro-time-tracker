@@ -45,7 +45,8 @@ function App() {
   const [isRunning, setIsRunning] = useState(false);
   const [theme, setTheme] = useState(saved?.theme || 'aurora');
   const [backgroundImage, setBackgroundImage] = useState(saved?.backgroundImage || '');
-  const [activeView, setActiveView] = useState('study');
+  const [workspaceTab, setWorkspaceTab] = useState('dashboard');
+  const [page, setPage] = useState('home');
   const [music, setMusic] = useState(saved?.music || {
     provider: 'spotify',
     connected: false,
@@ -84,7 +85,7 @@ function App() {
   }, [isRunning, mode]);
 
   useEffect(() => {
-    document.title = `${formatTime(remaining)} • Student Productivity Hub`;
+    document.title = `${formatTime(remaining)} • FocusForge`;
   }, [remaining]);
 
   function finishSession(currentMode) {
@@ -96,14 +97,12 @@ function App() {
       });
       setMode('shortBreak');
       setRemaining(DURATIONS.shortBreak);
-      alert('Focus done! Time for a short break.');
+      alert('Great focus block complete. Take a short break.');
     } else {
-      if (music.nowPlaying) {
-        setMusic((m) => ({ ...m, nowPlaying: false }));
-      }
+      setMusic((m) => ({ ...m, nowPlaying: false }));
       setMode('focus');
       setRemaining(DURATIONS.focus);
-      alert('Break ended. Music stopped and focus resumed.');
+      alert('Break ended. Music stopped, back to focus mode.');
     }
   }
 
@@ -141,6 +140,7 @@ function App() {
     const newAccount = { id: crypto.randomUUID(), name, email, password };
     setAccounts((prev) => [...prev, newAccount]);
     setSession({ id: newAccount.id, name: newAccount.name, email: newAccount.email });
+    setPage('home');
   }
 
   function signIn(email, password) {
@@ -150,6 +150,7 @@ function App() {
       return;
     }
     setSession({ id: account.id, name: account.name, email: account.email });
+    setPage('home');
   }
 
   const report = useMemo(() => {
@@ -187,56 +188,40 @@ function App() {
         <AuthCard onSignIn={signIn} onSignUp={signUp} />
       ) : (
         <>
-          <header className="topbar">
-            <div>
-              <h1>🎓 Student Productivity Hub</h1>
-              <p>Welcome, {session.name}. Manage focus, study sessions, music, and reports.</p>
+          <header className="brand-header">
+            <div className="brand-left">
+              <div className="logo-badge" aria-hidden="true">⏱️</div>
+              <div>
+                <h1>FocusForge</h1>
+                <p>Build elite study focus, one session at a time.</p>
+              </div>
             </div>
-            <button onClick={() => setSession(null)}>Log out</button>
+            <div className="row">
+              <button onClick={() => setPage('home')}>Home</button>
+              <button onClick={() => setPage('workspace')}>Workspace</button>
+              <button onClick={() => { setSession(null); setPage('home'); }}>Sign out</button>
+            </div>
           </header>
 
-          <section className="controls-grid card">
-            <label>
-              Theme
-              <select value={theme} onChange={(e) => setTheme(e.target.value)}>
-                <option value="aurora">Aurora</option>
-                <option value="sunset">Sunset</option>
-                <option value="midnight">Midnight</option>
-              </select>
-            </label>
-            <label>
-              Upload Wallpaper (from your computer)
-              <input type="file" accept="image/*" onChange={handleWallpaperUpload} />
-            </label>
-          </section>
+          {page === 'home' && (
+            <section className="card home-card">
+              <h2>Study Session Timer</h2>
+              <div className="timer">{formatTime(remaining)}</div>
+              <div className="modes">
+                <button className={mode === 'focus' ? 'active' : ''} onClick={() => switchMode('focus')}>Focus</button>
+                <button className={mode === 'shortBreak' ? 'active' : ''} onClick={() => switchMode('shortBreak')}>Short Break</button>
+                <button className={mode === 'longBreak' ? 'active' : ''} onClick={() => switchMode('longBreak')}>Long Break</button>
+              </div>
+              <div className="row">
+                <button onClick={() => setIsRunning((v) => !v)}>{isRunning ? 'Pause' : 'Start'}</button>
+                <button onClick={() => { setIsRunning(false); setRemaining(DURATIONS[mode]); }}>Reset</button>
+                <button onClick={() => finishSession(mode)}>Skip</button>
+              </div>
+              <p>Completed Focus Sessions: <strong>{completedFocusSessions}</strong></p>
 
-          <nav className="tabs card">
-            <button className={activeView === 'study' ? 'active' : ''} onClick={() => setActiveView('study')}>Study Session</button>
-            <button className={activeView === 'dashboard' ? 'active' : ''} onClick={() => setActiveView('dashboard')}>Dashboard</button>
-            <button className={activeView === 'reports' ? 'active' : ''} onClick={() => setActiveView('reports')}>Reports</button>
-          </nav>
-
-          {activeView === 'study' && (
-            <div className="grid-2">
-              <section className="card">
-                <h2>Study Session Timer</h2>
-                <div className="timer">{formatTime(remaining)}</div>
-                <div className="modes">
-                  <button className={mode === 'focus' ? 'active' : ''} onClick={() => switchMode('focus')}>Focus</button>
-                  <button className={mode === 'shortBreak' ? 'active' : ''} onClick={() => switchMode('shortBreak')}>Short Break</button>
-                  <button className={mode === 'longBreak' ? 'active' : ''} onClick={() => switchMode('longBreak')}>Long Break</button>
-                </div>
-                <div className="row">
-                  <button onClick={() => setIsRunning((v) => !v)}>{isRunning ? 'Pause' : 'Start'}</button>
-                  <button onClick={() => { setIsRunning(false); setRemaining(DURATIONS[mode]); }}>Reset</button>
-                  <button onClick={() => finishSession(mode)}>Skip</button>
-                </div>
-                <p>Completed Focus Sessions: <strong>{completedFocusSessions}</strong></p>
-              </section>
-
-              <section className="card">
-                <h2>Music Integration</h2>
-                <p>Connect a music provider, save your last played track link, and auto-stop music when break ends.</p>
+              <section className="music-block">
+                <h3>Music Player</h3>
+                <p>Just below your timer so you can control your sound without losing focus.</p>
                 <label>
                   Provider
                   <select
@@ -269,32 +254,61 @@ function App() {
                   <iframe title="music" src={music.lastTrackUrl} className="music-frame" allow="autoplay; encrypted-media" />
                 )}
               </section>
-            </div>
-          )}
 
-          {activeView === 'dashboard' && (
-            <section className="card">
-              <h2>Dashboard & Task Planner</h2>
-              <TaskSection tasks={tasks} onAdd={addTask} onUpdate={updateTask} onDelete={deleteTask} />
+              <button className="workspace-cta" onClick={() => setPage('workspace')}>Go to Dashboard & Reports</button>
             </section>
           )}
 
-          {activeView === 'reports' && (
-            <section className="card">
-              <h2>Student Reports</h2>
-              <div className="stats-grid">
-                <article><h3>Daily</h3><p>{report.daily} focus sessions</p></article>
-                <article><h3>Weekly</h3><p>{report.weekly} focus sessions</p></article>
-                <article><h3>Monthly</h3><p>{report.monthly} focus sessions</p></article>
-              </div>
-              <h3>Recent Daily Logs</h3>
-              <ul className="report-list">
-                {report.entries.length === 0 && <li>No sessions yet.</li>}
-                {report.entries.map(([date, count]) => (
-                  <li key={date}><span>{date}</span><strong>{count} sessions</strong></li>
-                ))}
-              </ul>
-            </section>
+          {page === 'workspace' && (
+            <>
+              <nav className="tabs card">
+                <button className={workspaceTab === 'dashboard' ? 'active' : ''} onClick={() => setWorkspaceTab('dashboard')}>Dashboard</button>
+                <button className={workspaceTab === 'reports' ? 'active' : ''} onClick={() => setWorkspaceTab('reports')}>Reports</button>
+                <button className={workspaceTab === 'study' ? 'active' : ''} onClick={() => setWorkspaceTab('study')}>Study</button>
+              </nav>
+
+              {workspaceTab === 'dashboard' && (
+                <section className="card">
+                  <h2>Dashboard & Task Planner</h2>
+                  <TaskSection tasks={tasks} onAdd={addTask} onUpdate={updateTask} onDelete={deleteTask} />
+                </section>
+              )}
+
+              {workspaceTab === 'reports' && (
+                <section className="card">
+                  <h2>Student Reports</h2>
+                  <div className="stats-grid">
+                    <article><h3>Daily</h3><p>{report.daily} focus sessions</p></article>
+                    <article><h3>Weekly</h3><p>{report.weekly} focus sessions</p></article>
+                    <article><h3>Monthly</h3><p>{report.monthly} focus sessions</p></article>
+                  </div>
+                  <h3>Recent Daily Logs</h3>
+                  <ul className="report-list">
+                    {report.entries.length === 0 && <li>No sessions yet.</li>}
+                    {report.entries.map(([date, count]) => (
+                      <li key={date}><span>{date}</span><strong>{count} sessions</strong></li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              {workspaceTab === 'study' && (
+                <section className="card controls-grid">
+                  <label>
+                    Theme
+                    <select value={theme} onChange={(e) => setTheme(e.target.value)}>
+                      <option value="aurora">Aurora</option>
+                      <option value="sunset">Sunset</option>
+                      <option value="midnight">Midnight</option>
+                    </select>
+                  </label>
+                  <label>
+                    Upload Wallpaper (from your computer)
+                    <input type="file" accept="image/*" onChange={handleWallpaperUpload} />
+                  </label>
+                </section>
+              )}
+            </>
           )}
         </>
       )}
@@ -320,8 +334,9 @@ function AuthCard({ onSignIn, onSignUp }) {
   return (
     <main className="auth-wrap">
       <section className="card auth-card">
-        <h1>{isSignup ? 'Create account' : 'Sign in'}</h1>
-        <p>{isSignup ? 'Start your productivity dashboard.' : 'Continue your study journey.'}</p>
+        <h1 className="auth-title">FocusForge</h1>
+        <p className="auth-tagline">Forge deep focus. Turn study hours into unstoppable progress.</p>
+        <h2>{isSignup ? 'Create account' : 'Sign in'}</h2>
         <form onSubmit={submit} className="auth-form">
           {isSignup && (
             <input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} required />

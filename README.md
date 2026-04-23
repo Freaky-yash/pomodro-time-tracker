@@ -1,32 +1,31 @@
-# Student Productivity Hub (ReactJS)
+# FocusForge (ReactJS)
 
-This project is now an enhanced **ReactJS-based student productivity app** with login/signup, study sessions, reports, theming, wallpaper upload, and music controls.
+FocusForge is a student productivity app with a **first-page study timer experience** and a separate **workspace page** for dashboard and reports.
 
-## Major features
+## What changed
 
-- **Auth pages**: Sign in and sign up flows (stored locally in browser storage for demo use).
-- **Dashboard** with sections:
-  - **Study Session**: Pomodoro timer with Focus / Short Break / Long Break modes.
-  - **Task Planner**: Add, complete, delete tasks, and increment `+1 Pomodoro` per task.
-  - **Reports**: Daily, weekly, and monthly focus-session summaries.
-- **Music system**:
-  - Choose provider (Spotify, YouTube Music, SoundCloud, Other).
-  - Simulated provider sign-in/connect state.
-  - Save/paste your last track URL and play/stop it in-app.
-  - Auto-stop music when a break ends.
-- **Personalization**:
-  - Theme selector.
-  - Upload custom wallpaper from your own computer.
+- **Sign-in page branding**: FocusForge title + catchy intro line.
+- **After sign in (first page)**:
+  - Study Session Timer is shown immediately.
+  - Music player appears directly below the timer.
+  - Top-left branded logo + project title.
+- **Workspace page** (opened by button from first page):
+  - Dashboard (tasks)
+  - Reports (daily / weekly / monthly)
+  - Study tab (theme + wallpaper upload)
+
+## Core features
+
+- Pomodoro timer modes (Focus / Short Break / Long Break)
+- Task management with per-task Pomodoro increments
+- Daily/weekly/monthly session reports
+- Theme selector and custom wallpaper upload from local computer
+- Music panel with provider choice and simulated sign-in
+- Music auto-stops when break ends
 
 ## Run locally
 
 1. Open `index.html` in a modern browser with internet access (for React/Babel CDN scripts).
-2. Create an account and start using the dashboard.
+2. Sign up or sign in to enter FocusForge.
 
-> Note: This is a front-end demo app. Music "provider sign in" is simulated and does not yet perform OAuth with real provider APIs.
-
-## Tech
-
-- `index.html`: root file + CDN React/Babel setup
-- `app.js`: React components and application state logic
-- `style.css`: responsive styling and themes
+> Note: Music provider sign-in is simulated in this front-end demo and does not yet use real OAuth APIs.
