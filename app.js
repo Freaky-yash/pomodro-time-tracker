@@ -1,43 +1,25 @@
+const { useEffect, useMemo, useState } = React;
+
 const DURATIONS = {
   focus: 25 * 60,
   shortBreak: 5 * 60,
   longBreak: 15 * 60,
 };
 
-const timerDisplay = document.getElementById('timerDisplay');
-const sessionCountEl = document.getElementById('sessionCount');
-const startPauseBtn = document.getElementById('startPauseBtn');
-const resetBtn = document.getElementById('resetBtn');
-const skipBtn = document.getElementById('skipBtn');
-const modeButtons = [...document.querySelectorAll('.mode-btn')];
-const taskForm = document.getElementById('taskForm');
-const taskInput = document.getElementById('taskInput');
-const taskList = document.getElementById('taskList');
+const STORAGE_KEY = 'student-productivity-hub-v2';
 
-let mode = 'focus';
-let remaining = DURATIONS[mode];
-let intervalId = null;
-
-const state = {
-  completedFocusSessions: 0,
-  tasks: [],
-};
-
-function saveState() {
-  localStorage.setItem('pomodoro-student-tracker', JSON.stringify(state));
+function loadStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
 }
 
-function loadState() {
-  const raw = localStorage.getItem('pomodoro-student-tracker');
-  if (!raw) return;
-
-  try {
-    const parsed = JSON.parse(raw);
-    state.completedFocusSessions = Number(parsed.completedFocusSessions) || 0;
-    state.tasks = Array.isArray(parsed.tasks) ? parsed.tasks : [];
-  } catch {
-    // Ignore malformed storage.
-  }
+function saveStorage(state) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
 function formatTime(seconds) {
@@ -46,174 +28,360 @@ function formatTime(seconds) {
   return `${min}:${sec}`;
 }
 
-function renderTimer() {
-  timerDisplay.textContent = formatTime(remaining);
-  document.title = `${timerDisplay.textContent} • Pomodoro`;
+function getDateKey(date = new Date()) {
+  return date.toISOString().slice(0, 10);
 }
 
-function renderStats() {
-  sessionCountEl.textContent = String(state.completedFocusSessions);
-}
+function App() {
+  const saved = loadStorage();
 
-function renderTasks() {
-  taskList.innerHTML = '';
+  const [accounts, setAccounts] = useState(saved?.accounts || []);
+  const [session, setSession] = useState(saved?.session || null);
+  const [tasks, setTasks] = useState(saved?.tasks || []);
+  const [completedFocusSessions, setCompletedFocusSessions] = useState(saved?.completedFocusSessions || 0);
+  const [sessionHistory, setSessionHistory] = useState(saved?.sessionHistory || {});
+  const [mode, setMode] = useState('focus');
+  const [remaining, setRemaining] = useState(DURATIONS.focus);
+  const [isRunning, setIsRunning] = useState(false);
+  const [theme, setTheme] = useState(saved?.theme || 'aurora');
+  const [backgroundImage, setBackgroundImage] = useState(saved?.backgroundImage || '');
+  const [activeView, setActiveView] = useState('study');
+  const [music, setMusic] = useState(saved?.music || {
+    provider: 'spotify',
+    connected: false,
+    lastTrackUrl: '',
+    nowPlaying: false,
+  });
 
-  if (state.tasks.length === 0) {
-    const empty = document.createElement('li');
-    empty.textContent = 'No tasks yet. Add one to start studying!';
-    empty.className = 'task-item';
-    taskList.appendChild(empty);
-    return;
-  }
-
-  state.tasks.forEach((task) => {
-    const li = document.createElement('li');
-    li.className = `task-item ${task.done ? 'completed' : ''}`;
-
-    const left = document.createElement('div');
-    left.className = 'task-left';
-
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.checked = task.done;
-    checkbox.setAttribute('aria-label', `Mark ${task.text} as done`);
-    checkbox.addEventListener('change', () => {
-      task.done = checkbox.checked;
-      saveState();
-      renderTasks();
+  useEffect(() => {
+    saveStorage({
+      accounts,
+      session,
+      tasks,
+      completedFocusSessions,
+      sessionHistory,
+      theme,
+      backgroundImage,
+      music,
     });
+  }, [accounts, session, tasks, completedFocusSessions, sessionHistory, theme, backgroundImage, music]);
 
-    const text = document.createElement('span');
-    text.className = 'task-text';
-    text.textContent = task.text;
-
-    left.append(checkbox, text);
-
-    const actions = document.createElement('div');
-    actions.className = 'task-actions';
-
-    const focusBtn = document.createElement('button');
-    focusBtn.type = 'button';
-    focusBtn.textContent = '+1 Pomodoro';
-    focusBtn.addEventListener('click', () => {
-      task.pomodoros = (task.pomodoros || 0) + 1;
-      text.textContent = `${task.text} (${task.pomodoros})`;
-      saveState();
-    });
-
-    const deleteBtn = document.createElement('button');
-    deleteBtn.type = 'button';
-    deleteBtn.textContent = 'Delete';
-    deleteBtn.className = 'delete-btn';
-    deleteBtn.addEventListener('click', () => {
-      state.tasks = state.tasks.filter((t) => t.id !== task.id);
-      saveState();
-      renderTasks();
-    });
-
-    if (task.pomodoros) {
-      text.textContent = `${task.text} (${task.pomodoros})`;
+  useEffect(() => {
+    let id;
+    if (isRunning) {
+      id = setInterval(() => {
+        setRemaining((prev) => {
+          if (prev <= 1) {
+            setIsRunning(false);
+            finishSession(mode);
+            return DURATIONS.focus;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     }
+    return () => clearInterval(id);
+  }, [isRunning, mode]);
 
-    actions.append(focusBtn, deleteBtn);
-    li.append(left, actions);
-    taskList.appendChild(li);
-  });
-}
+  useEffect(() => {
+    document.title = `${formatTime(remaining)} • Student Productivity Hub`;
+  }, [remaining]);
 
-function stopTimer() {
-  if (intervalId) {
-    clearInterval(intervalId);
-    intervalId = null;
-  }
-  startPauseBtn.textContent = 'Start';
-}
-
-function switchMode(nextMode) {
-  mode = nextMode;
-  remaining = DURATIONS[nextMode];
-
-  modeButtons.forEach((btn) => {
-    btn.classList.toggle('active', btn.dataset.mode === nextMode);
-  });
-
-  stopTimer();
-  renderTimer();
-}
-
-function finishCurrentSession() {
-  if (mode === 'focus') {
-    state.completedFocusSessions += 1;
-    saveState();
-    renderStats();
-    alert('Great work! Focus session completed. Take a break now.');
-  } else {
-    alert('Break done! Ready for the next focus session?');
-  }
-
-  switchMode('focus');
-}
-
-function startTimer() {
-  if (intervalId) return;
-
-  startPauseBtn.textContent = 'Pause';
-  intervalId = setInterval(() => {
-    remaining -= 1;
-    renderTimer();
-
-    if (remaining <= 0) {
-      stopTimer();
-      finishCurrentSession();
+  function finishSession(currentMode) {
+    if (currentMode === 'focus') {
+      setCompletedFocusSessions((s) => s + 1);
+      setSessionHistory((prev) => {
+        const key = getDateKey();
+        return { ...prev, [key]: (prev[key] || 0) + 1 };
+      });
+      setMode('shortBreak');
+      setRemaining(DURATIONS.shortBreak);
+      alert('Focus done! Time for a short break.');
+    } else {
+      if (music.nowPlaying) {
+        setMusic((m) => ({ ...m, nowPlaying: false }));
+      }
+      setMode('focus');
+      setRemaining(DURATIONS.focus);
+      alert('Break ended. Music stopped and focus resumed.');
     }
-  }, 1000);
-}
-
-function pauseTimer() {
-  stopTimer();
-}
-
-startPauseBtn.addEventListener('click', () => {
-  if (intervalId) {
-    pauseTimer();
-  } else {
-    startTimer();
   }
-});
 
-resetBtn.addEventListener('click', () => {
-  remaining = DURATIONS[mode];
-  stopTimer();
-  renderTimer();
-});
+  function switchMode(nextMode) {
+    setMode(nextMode);
+    setRemaining(DURATIONS[nextMode]);
+    setIsRunning(false);
+  }
 
-skipBtn.addEventListener('click', () => {
-  finishCurrentSession();
-});
+  function addTask(text) {
+    setTasks((prev) => [{ id: crypto.randomUUID(), text, done: false, pomodoros: 0 }, ...prev]);
+  }
 
-modeButtons.forEach((btn) => {
-  btn.addEventListener('click', () => switchMode(btn.dataset.mode));
-});
+  function updateTask(id, patch) {
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  }
 
-taskForm.addEventListener('submit', (event) => {
-  event.preventDefault();
+  function deleteTask(id) {
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+  }
 
-  const text = taskInput.value.trim();
-  if (!text) return;
+  function handleWallpaperUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setBackgroundImage(reader.result?.toString() || '');
+    reader.readAsDataURL(file);
+  }
 
-  state.tasks.unshift({
-    id: crypto.randomUUID(),
-    text,
-    done: false,
-    pomodoros: 0,
-  });
+  function signUp(email, password, name) {
+    if (accounts.some((a) => a.email.toLowerCase() === email.toLowerCase())) {
+      alert('Email already exists. Please sign in.');
+      return;
+    }
+    const newAccount = { id: crypto.randomUUID(), name, email, password };
+    setAccounts((prev) => [...prev, newAccount]);
+    setSession({ id: newAccount.id, name: newAccount.name, email: newAccount.email });
+  }
 
-  taskInput.value = '';
-  saveState();
-  renderTasks();
-});
+  function signIn(email, password) {
+    const account = accounts.find((a) => a.email.toLowerCase() === email.toLowerCase() && a.password === password);
+    if (!account) {
+      alert('Invalid email or password.');
+      return;
+    }
+    setSession({ id: account.id, name: account.name, email: account.email });
+  }
 
-loadState();
-renderTimer();
-renderStats();
-renderTasks();
+  const report = useMemo(() => {
+    const entries = Object.entries(sessionHistory);
+    const daily = sessionHistory[getDateKey()] || 0;
+
+    const now = new Date();
+    const weekAgo = new Date(now);
+    weekAgo.setDate(now.getDate() - 6);
+
+    const monthAgo = new Date(now);
+    monthAgo.setDate(now.getDate() - 29);
+
+    let weekly = 0;
+    let monthly = 0;
+
+    entries.forEach(([date, count]) => {
+      const d = new Date(`${date}T00:00:00`);
+      if (d >= weekAgo) weekly += count;
+      if (d >= monthAgo) monthly += count;
+    });
+
+    return { daily, weekly, monthly, entries: entries.sort((a, b) => b[0].localeCompare(a[0])) };
+  }, [sessionHistory]);
+
+  const rootStyle = {
+    backgroundImage: backgroundImage
+      ? `linear-gradient(rgba(8,12,20,.62), rgba(8,12,20,.62)), url(${backgroundImage})`
+      : undefined,
+  };
+
+  return (
+    <div className={`app theme-${theme}`} style={rootStyle}>
+      {!session ? (
+        <AuthCard onSignIn={signIn} onSignUp={signUp} />
+      ) : (
+        <>
+          <header className="topbar">
+            <div>
+              <h1>🎓 Student Productivity Hub</h1>
+              <p>Welcome, {session.name}. Manage focus, study sessions, music, and reports.</p>
+            </div>
+            <button onClick={() => setSession(null)}>Log out</button>
+          </header>
+
+          <section className="controls-grid card">
+            <label>
+              Theme
+              <select value={theme} onChange={(e) => setTheme(e.target.value)}>
+                <option value="aurora">Aurora</option>
+                <option value="sunset">Sunset</option>
+                <option value="midnight">Midnight</option>
+              </select>
+            </label>
+            <label>
+              Upload Wallpaper (from your computer)
+              <input type="file" accept="image/*" onChange={handleWallpaperUpload} />
+            </label>
+          </section>
+
+          <nav className="tabs card">
+            <button className={activeView === 'study' ? 'active' : ''} onClick={() => setActiveView('study')}>Study Session</button>
+            <button className={activeView === 'dashboard' ? 'active' : ''} onClick={() => setActiveView('dashboard')}>Dashboard</button>
+            <button className={activeView === 'reports' ? 'active' : ''} onClick={() => setActiveView('reports')}>Reports</button>
+          </nav>
+
+          {activeView === 'study' && (
+            <div className="grid-2">
+              <section className="card">
+                <h2>Study Session Timer</h2>
+                <div className="timer">{formatTime(remaining)}</div>
+                <div className="modes">
+                  <button className={mode === 'focus' ? 'active' : ''} onClick={() => switchMode('focus')}>Focus</button>
+                  <button className={mode === 'shortBreak' ? 'active' : ''} onClick={() => switchMode('shortBreak')}>Short Break</button>
+                  <button className={mode === 'longBreak' ? 'active' : ''} onClick={() => switchMode('longBreak')}>Long Break</button>
+                </div>
+                <div className="row">
+                  <button onClick={() => setIsRunning((v) => !v)}>{isRunning ? 'Pause' : 'Start'}</button>
+                  <button onClick={() => { setIsRunning(false); setRemaining(DURATIONS[mode]); }}>Reset</button>
+                  <button onClick={() => finishSession(mode)}>Skip</button>
+                </div>
+                <p>Completed Focus Sessions: <strong>{completedFocusSessions}</strong></p>
+              </section>
+
+              <section className="card">
+                <h2>Music Integration</h2>
+                <p>Connect a music provider, save your last played track link, and auto-stop music when break ends.</p>
+                <label>
+                  Provider
+                  <select
+                    value={music.provider}
+                    onChange={(e) => setMusic((m) => ({ ...m, provider: e.target.value }))}
+                  >
+                    <option value="spotify">Spotify</option>
+                    <option value="youtube">YouTube Music</option>
+                    <option value="soundcloud">SoundCloud</option>
+                    <option value="other">Other</option>
+                  </select>
+                </label>
+                <div className="row">
+                  <button onClick={() => setMusic((m) => ({ ...m, connected: !m.connected }))}>
+                    {music.connected ? 'Disconnect' : `Sign in to ${music.provider}`}
+                  </button>
+                  <button
+                    disabled={!music.connected || !music.lastTrackUrl}
+                    onClick={() => setMusic((m) => ({ ...m, nowPlaying: !m.nowPlaying }))}
+                  >
+                    {music.nowPlaying ? 'Stop music' : 'Play last track'}
+                  </button>
+                </div>
+                <input
+                  placeholder="Paste track/share URL"
+                  value={music.lastTrackUrl}
+                  onChange={(e) => setMusic((m) => ({ ...m, lastTrackUrl: e.target.value }))}
+                />
+                {music.nowPlaying && music.lastTrackUrl && (
+                  <iframe title="music" src={music.lastTrackUrl} className="music-frame" allow="autoplay; encrypted-media" />
+                )}
+              </section>
+            </div>
+          )}
+
+          {activeView === 'dashboard' && (
+            <section className="card">
+              <h2>Dashboard & Task Planner</h2>
+              <TaskSection tasks={tasks} onAdd={addTask} onUpdate={updateTask} onDelete={deleteTask} />
+            </section>
+          )}
+
+          {activeView === 'reports' && (
+            <section className="card">
+              <h2>Student Reports</h2>
+              <div className="stats-grid">
+                <article><h3>Daily</h3><p>{report.daily} focus sessions</p></article>
+                <article><h3>Weekly</h3><p>{report.weekly} focus sessions</p></article>
+                <article><h3>Monthly</h3><p>{report.monthly} focus sessions</p></article>
+              </div>
+              <h3>Recent Daily Logs</h3>
+              <ul className="report-list">
+                {report.entries.length === 0 && <li>No sessions yet.</li>}
+                {report.entries.map(([date, count]) => (
+                  <li key={date}><span>{date}</span><strong>{count} sessions</strong></li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function AuthCard({ onSignIn, onSignUp }) {
+  const [isSignup, setIsSignup] = useState(false);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  function submit(e) {
+    e.preventDefault();
+    if (isSignup) {
+      onSignUp(email.trim(), password, name.trim() || 'Student');
+    } else {
+      onSignIn(email.trim(), password);
+    }
+  }
+
+  return (
+    <main className="auth-wrap">
+      <section className="card auth-card">
+        <h1>{isSignup ? 'Create account' : 'Sign in'}</h1>
+        <p>{isSignup ? 'Start your productivity dashboard.' : 'Continue your study journey.'}</p>
+        <form onSubmit={submit} className="auth-form">
+          {isSignup && (
+            <input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} required />
+          )}
+          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={4} />
+          <button type="submit">{isSignup ? 'Sign up' : 'Sign in'}</button>
+        </form>
+        <button className="link" onClick={() => setIsSignup((v) => !v)}>
+          {isSignup ? 'Already have an account? Sign in' : 'New student? Create an account'}
+        </button>
+      </section>
+    </main>
+  );
+}
+
+function TaskSection({ tasks, onAdd, onUpdate, onDelete }) {
+  const [text, setText] = useState('');
+
+  function submit(e) {
+    e.preventDefault();
+    const value = text.trim();
+    if (!value) return;
+    onAdd(value);
+    setText('');
+  }
+
+  return (
+    <>
+      <form onSubmit={submit} className="task-form">
+        <input
+          value={text}
+          maxLength={120}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Add a study task"
+          required
+        />
+        <button type="submit">Add Task</button>
+      </form>
+      <ul className="task-list">
+        {tasks.length === 0 && <li className="empty">No tasks yet.</li>}
+        {tasks.map((task) => (
+          <li key={task.id} className={task.done ? 'done' : ''}>
+            <label>
+              <input
+                type="checkbox"
+                checked={task.done}
+                onChange={(e) => onUpdate(task.id, { done: e.target.checked })}
+              />
+              <span>{task.text} {task.pomodoros > 0 ? `(${task.pomodoros})` : ''}</span>
+            </label>
+            <div className="row">
+              <button onClick={() => onUpdate(task.id, { pomodoros: task.pomodoros + 1 })}>+1 Pomodoro</button>
+              <button onClick={() => onDelete(task.id)}>Delete</button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);

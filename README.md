@@ -1,37 +1,32 @@
-# Student Pomodoro Time Task Tracker
+# Student Productivity Hub (ReactJS)
 
-A simple, zero-dependency Pomodoro app for students to improve study productivity.
+This project is now an enhanced **ReactJS-based student productivity app** with login/signup, study sessions, reports, theming, wallpaper upload, and music controls.
 
-## Features
-- 25/5/15 minute Pomodoro modes (Focus, Short Break, Long Break)
-- Start / Pause / Reset / Skip timer controls
-- Track completed focus sessions
-- Add, complete, and delete study tasks
-- Track Pomodoro count per task (`+1 Pomodoro`)
-- Saves progress in browser `localStorage`
+## Major features
+
+- **Auth pages**: Sign in and sign up flows (stored locally in browser storage for demo use).
+- **Dashboard** with sections:
+  - **Study Session**: Pomodoro timer with Focus / Short Break / Long Break modes.
+  - **Task Planner**: Add, complete, delete tasks, and increment `+1 Pomodoro` per task.
+  - **Reports**: Daily, weekly, and monthly focus-session summaries.
+- **Music system**:
+  - Choose provider (Spotify, YouTube Music, SoundCloud, Other).
+  - Simulated provider sign-in/connect state.
+  - Save/paste your last track URL and play/stop it in-app.
+  - Auto-stop music when a break ends.
+- **Personalization**:
+  - Theme selector.
+  - Upload custom wallpaper from your own computer.
 
 ## Run locally
-You **do not need Python** to use this app.
 
-### Option 1 (recommended): Open directly
-Open `index.html` in your browser.
+1. Open `index.html` in a modern browser with internet access (for React/Babel CDN scripts).
+2. Create an account and start using the dashboard.
 
-### Option 2 (only if you prefer a local server)
-Use any static server. Python is just one common built-in option:
+> Note: This is a front-end demo app. Music "provider sign in" is simulated and does not yet perform OAuth with real provider APIs.
 
-```bash
-python3 -m http.server 8000
-```
+## Tech
 
-Then open: `http://localhost:8000`
-
-## Project structure
-- `index.html` – app UI
-- `style.css` – styling and layout
-- `app.js` – timer and task logic
-
-## Student productivity tips
-- Pick **1 clear task** before pressing Start.
-- Put your phone away during each focus block.
-- During breaks, stand up, hydrate, and avoid doom-scrolling.
-- After every 4 focus sessions, take a longer break.
+- `index.html`: root file + CDN React/Babel setup
+- `app.js`: React components and application state logic
+- `style.css`: responsive styling and themes
